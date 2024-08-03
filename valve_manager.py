@@ -1,3 +1,11 @@
+"""
+Gestione Collaudi Valvole di Sicurezza
+
+Questo programma gestisce la manutenzione e il controllo delle valvole di sicurezza.
+Consente di inserire, modificare e cancellare le valvole, nonché di esportare i dati in formato PDF, CSV o Excel.
+Inoltre, il programma controlla automaticamente la scadenza dei collaudi e invia notifiche tramite il sistema di notifiche del sistema operativo.
+"""
+
 import sys
 import sqlite3
 from datetime import datetime, date, timedelta
@@ -11,10 +19,30 @@ from reportlab.pdfgen import canvas
 import csv
 from openpyxl import Workbook
 
+# Funzione per convertire la data in formato ISO
 def adapt_date(val):
+    """
+    Converte la data in formato ISO.
+
+    Args:
+        val (date): Data da convertire.
+
+    Returns:
+        str: Data in formato ISO.
+    """
     return val.isoformat()
 
+# Funzione per convertire la data da formato ISO
 def convert_date(val):
+    """
+    Converte la data da formato ISO.
+
+    Args:
+        val (str): Data in formato ISO.
+
+    Returns:
+        date: Data convertita.
+    """
     if isinstance(val, str):
         return date.fromisoformat(val)
     elif isinstance(val, date):
@@ -24,11 +52,25 @@ def convert_date(val):
     else:
         raise ValueError("Valore non valido per la data")
 
+# Registra le funzioni di conversione per la data
 sqlite3.register_adapter(date, adapt_date)
 sqlite3.register_converter("DATE", convert_date)
 
 class Database:
+    """
+    Classe per gestire il database delle valvole.
+
+    Attributes:
+        conn (sqlite3.Connection): Connessione al database.
+        cursor (sqlite3.Cursor): Cursor per eseguire le query.
+        alerts_paused (bool): Indica se le notifiche sono state messe in pausa.
+        pause_end_date (date): Data di fine della pausa delle notifiche.
+    """
+
     def __init__(self):
+        """
+        Inizializza il database e crea le tabelle se non esistono.
+        """
         try:
             self.conn = sqlite3.connect('valves.db', detect_types=sqlite3.PARSE_DECLTYPES)
             self.cursor = self.conn.cursor()
@@ -52,12 +94,21 @@ class Database:
             print(f"Errore di database: {e}")
 
     def close(self):
+        """
+        Chiude la connessione al database.
+        """
         try:
             self.conn.close()
         except sqlite3.Error as e:
             print(f"Errore di database: {e}")
 
     def get_valves(self):
+        """
+        Restituisce la lista delle valvole.
+
+        Returns:
+            list: Lista delle valvole.
+        """
         try:
             self.cursor.execute("SELECT * FROM valves")
             rows = self.cursor.fetchall()
@@ -72,6 +123,15 @@ class Database:
             return []
 
     def get_valve(self, id):
+        """
+        Restituisce la valvola con l'ID specificato.
+
+        Args:
+            id (str): ID della valvola.
+
+        Returns:
+            tuple: Valvola con l'ID specificato.
+        """
         try:
             self.cursor.execute("SELECT * FROM valves WHERE id=?", (id,))
             valve = self.cursor.fetchone()
@@ -86,6 +146,15 @@ class Database:
             return None
 
     def insert_valve(self, valve):
+        """
+        Inserisce una nuova valvola nel database.
+
+        Args:
+            valve (tuple): Valvola da inserire.
+
+        Returns:
+            bool: True se l'inserimento è stato eseguito con successo, False altrimenti.
+        """
         try:
             self.cursor.execute("SELECT * FROM valves WHERE id=?", (valve[0],))
             if self.cursor.fetchone():
@@ -101,6 +170,13 @@ class Database:
             return False
 
     def update_valve(self, id, valve):
+        """
+        Aggiorna la valvola con l'ID specificato.
+
+        Args:
+            id (str): ID della valvola.
+            valve (tuple): Valvola da aggiornare.
+        """
         try:
             images = valve[-1]
             if images:
@@ -119,6 +195,12 @@ class Database:
             print(f"Errore di database: {e}")
 
     def delete_valve(self, id):
+        """
+        Cancella la valvola con l'ID specificato.
+
+        Args:
+            id (str): ID della valvola.
+        """
         try:
             self.cursor.execute("DELETE FROM valves WHERE id=?", (id,))
             self.cursor.execute("DELETE FROM valve_images WHERE valve_id=?", (id,))
@@ -127,6 +209,13 @@ class Database:
             print(f"Errore di database: {e}")
 
     def update_valve_image(self, id, image):
+        """
+        Aggiorna l'immagine della valvola con l'ID specificato.
+
+        Args:
+            id (str): ID della valvola.
+            image (bytes): Immagine da aggiornare.
+        """
         try:
             self.cursor.execute("INSERT INTO valve_images (valve_id, image) VALUES (?,?)", (id, image))
             self.conn.commit()
@@ -134,7 +223,17 @@ class Database:
             print(f"Errore di database: {e}")
 
 class ExportFormatDialog(QDialog):
+    """
+    Classe per la finestra di dialogo per la scelta del formato di esportazione.
+
+    Attributes:
+        format_combo (QComboBox): Combo box per la scelta del formato di esportazione.
+    """
+
     def __init__(self, parent=None):
+        """
+        Inizializza la finestra di dialogo.
+        """
         super().__init__(parent)
         self.setWindowTitle("Seleziona il formato di esportazione")
         self.layout = QVBoxLayout()
@@ -151,34 +250,28 @@ class ExportFormatDialog(QDialog):
         self.setLayout(self.layout)
 
     def get_selected_format(self):
+        """
+        Restituisce il formato di esportazione selezionato.
+
+        Returns:
+            str: Formato di esportazione selezionato.
+        """
         return self.format_combo.currentText()
 
 class ValveManager(QMainWindow):
-    alerts_paused = False
-    pause_end_date = None
-    
-    def closeEvent(self, event):
-        msg_box = QMessageBox(self)
-        msg_box.setText('Vuoi chiudere completamente il programma o nasconderlo nella system tray?')
-        chiudi_button = msg_box.addButton('Chiudi', QMessageBox.ButtonRole.YesRole)
-        nascondi_button = msg_box.addButton('Nascondi', QMessageBox.ButtonRole.NoRole)
-        annulla_button = msg_box.addButton('Annulla', QMessageBox.ButtonRole.RejectRole)
+    """
+    Classe per la gestione delle valvole.
 
-        reply = msg_box.exec()
+    Attributes:
+        db (Database): Oggetto per la gestione del database.
+        alerts_paused (bool): Indica se le notifiche sono state messe in pausa.
+        pause_end_date (date): Data di fine della pausa delle notifiche.
+    """
 
-        if msg_box.clickedButton() == chiudi_button:
-            # Chiudi completamente il programma
-            sys.exit(0)
-        elif msg_box.clickedButton() == nascondi_button:
-            # Nascondi il programma nella system tray
-            self.hide()
-            self.tray_icon.setVisible(True)
-            event.ignore()
-        else:
-            # Annulla la chiusura
-            event.ignore()
-            
     def __init__(self):
+        """
+        Inizializza la finestra principale.
+        """
         super().__init__()
         self.setWindowTitle("Gestione Collaudi Valvole di Sicurezza")
         self.setGeometry(100, 100, 1000, 600)
@@ -191,6 +284,9 @@ class ValveManager(QMainWindow):
         self.image_list.resizeEvent = self.resize_image_list
 
     def resize_image_list(self, event):
+        """
+        Ridimensiona la lista delle immagini.
+        """
         for i in range(self.image_list.count()):
             item = self.image_list.item(i)
             image_label = self.image_list.itemWidget(item)
@@ -198,6 +294,9 @@ class ValveManager(QMainWindow):
                 image_label.setFixedSize(self.image_list.width(), self.image_list.height())
 
     def init_ui(self):
+        """
+        Inizializza l'interfaccia utente.
+        """
         main_layout = QHBoxLayout()
 
         list_layout = QVBoxLayout()
@@ -299,6 +398,9 @@ class ValveManager(QMainWindow):
         self.load_valves()
 
     def init_tray(self):
+        """
+        Inizializza la tray icon.
+        """
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QIcon('icona.ico'))
         self.tray_icon.setToolTip("Gestione Collaudi Valvole di Sicurezza")  # Imposta il titolo dell'alert
@@ -324,15 +426,27 @@ class ValveManager(QMainWindow):
         self.tray_icon.show()
 
     def pause_alerts(self, days):
+        """
+        Mette in pausa le notifiche per il numero di giorni specificato.
+
+        Args:
+            days (int): Numero di giorni per cui mettere in pausa le notifiche.
+        """
         self.alerts_paused = True
         self.pause_end_date = date.today() + timedelta(days=days)
         self.tray_icon.showMessage("Pausa Alert", f"Gli alert sono stati messi in pausa per {days} giorni.")
 
     def resume_alerts(self):
+        """
+        Annulla la pausa delle notifiche.
+        """
         self.alerts_paused = False
         self.tray_icon.showMessage("Pausa Alert", "La pausa degli alert è stata annullata.")
 
     def load_valves(self):
+        """
+        Carica la lista delle valvole.
+        """
         self.valve_list.clear()
         valves = self.db.get_valves()
         for valve in valves:
@@ -340,6 +454,9 @@ class ValveManager(QMainWindow):
         self.search_valves()
 
     def search_valves(self):
+        """
+        Cerca le valvole in base al testo inserito nella barra di ricerca.
+        """
         search_text = self.search_input.text().lower()
         for i in range(self.valve_list.count()):
             item = self.valve_list.item(i)
@@ -349,6 +466,12 @@ class ValveManager(QMainWindow):
                 item.setHidden(True)
 
     def show_valve_details(self, item):
+        """
+        Mostra i dettagli della valvola selezionata.
+
+        Args:
+            item (QListWidgetItem): Item selezionato.
+        """
         valve_id = item.text().split(':')[0]
         valve = self.db.get_valve(valve_id)
         if valve:
@@ -374,6 +497,9 @@ class ValveManager(QMainWindow):
         self.id_input.setEnabled(False)  # Disabilita la modifica del codice seriale
 
     def save_valve(self):
+        """
+        Salva le modifiche alla valvola.
+        """
         try:
             valve_id = self.id_input.text()
             name = self.name_input.text()
@@ -443,6 +569,9 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def prepare_new_valve(self):
+        """
+        Prepara una nuova valvola.
+        """
         self.id_input.clear()
         self.name_input.clear()
         self.nominal_pressure_input.clear()
@@ -455,6 +584,9 @@ class ValveManager(QMainWindow):
         self.id_input.setEnabled(True)  # Abilita la modifica del codice seriale
 
     def insert_valve(self):
+        """
+        Inserisce una nuova valvola.
+        """
         try:
             # Legge i dati dalla scheda
             valve_id = self.id_input.text()
@@ -498,6 +630,9 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def delete_valve(self):
+        """
+        Cancella la valvola selezionata.
+        """
         try:
             valve_id = self.valve_list.currentItem().text().split(':')[0]
             reply = QMessageBox.question(self, 'Conferma eliminazione', f'Sei sicuro di voler eliminare la valvola {valve_id}?',
@@ -510,6 +645,9 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def add_image(self):
+        """
+        Aggiunge un'immagine alla valvola.
+        """
         try:
             file_name, _ = QFileDialog.getOpenFileName(self, "Seleziona immagine", "", "Immagini (*.png *.xpm *.jpg)")
             if file_name:
@@ -532,6 +670,12 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def show_selected_image(self, item):
+        """
+        Mostra l'immagine selezionata.
+
+        Args:
+            item (QListWidgetItem): Item selezionato.
+        """
         try:
             image_label = self.image_list.itemWidget(item)
             if image_label:
@@ -540,6 +684,12 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def remove_selected_image(self, item):
+        """
+        Rimuove l'immagine selezionata.
+
+        Args:
+            item (QListWidgetItem): Item selezionato.
+        """
         try:
             reply = QMessageBox.question(self, 'Conferma rimozione', 'Sei sicuro di voler rimuovere l\'immagine?',
                                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
@@ -549,6 +699,9 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def remove_image(self):
+        """
+        Rimuove l'immagine selezionata.
+        """
         try:
             selected_item = self.image_list.currentItem()
             if selected_item:
@@ -562,6 +715,9 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def export_image(self):
+        """
+        Esporta l'immagine selezionata.
+        """
         try:
             selected_item = self.image_list.currentItem()
             if selected_item:
@@ -577,6 +733,9 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def generate_report(self):
+        """
+        Genera il report delle valvole.
+        """
         try:
             valves = self.db.get_valves()
             self.report_table.setRowCount(len(valves))
@@ -609,6 +768,9 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def export_report(self):
+        """
+        Esporta il report delle valvole.
+        """
         try:
             dialog = ExportFormatDialog(self)
             if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -627,6 +789,12 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def export_to_pdf(self, valves):
+        """
+        Esporta il report in formato PDF.
+
+        Args:
+            valves (list): Lista delle valvole.
+        """
         try:
             file_name, _ = QFileDialog.getSaveFileName(self, "Salva PDF", "", "PDF Files (*.pdf)")
             if file_name:
@@ -647,6 +815,12 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def export_to_csv(self, valves):
+        """
+        Esporta il report in formato CSV.
+
+        Args:
+            valves (list): Lista delle valvole.
+        """
         try:
             file_name, _ = QFileDialog.getSaveFileName(self, "Salva CSV", "", "CSV Files (*.csv)")
             if file_name:
@@ -660,6 +834,12 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def export_to_excel(self, valves):
+        """
+        Esporta il report in formato Excel.
+
+        Args:
+            valves (list): Lista delle valvole.
+        """
         try:
             file_name, _ = QFileDialog.getSaveFileName(self, "Salva Excel", "", "Excel Files (*.xlsx)")
             if file_name:
@@ -674,6 +854,9 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def check_collauds(self):
+        """
+        Controlla la scadenza dei collaudi.
+        """
         if self.alerts_paused and self.pause_end_date is not None and date.today() < self.pause_end_date:
             return
         try:
@@ -699,6 +882,9 @@ class ValveManager(QMainWindow):
             print(f"Errore di database: {e}")
 
     def setup_collaud_check(self):
+        """
+        Imposta il controllo della scadenza dei collaudi.
+        """
         try:
             timer = QTimer(self)
             timer.timeout.connect(self.check_collauds)
