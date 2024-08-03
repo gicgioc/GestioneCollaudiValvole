@@ -159,10 +159,8 @@ class Database:
             self.cursor.execute("SELECT * FROM valves WHERE id=?", (valve[0],))
             if self.cursor.fetchone():
                 return False
-            self.cursor.execute("""
-                INSERT INTO valves (id, name, nominal_pressure, inlet_diameter, outlet_diameter, last_collaud_date, years_until_collaud, avviso_anticipo)
-                VALUES (?,?,?,?,?,?,?,?)
-            """, valve)
+            self.cursor.execute("""INSERT INTO valves (id, name, nominal_pressure, inlet_diameter, outlet_diameter, last_collaud_date, years_until_collaud, avviso_anticipo)
+                VALUES (?,?,?,?,?,?,?,?)""", valve)
             self.conn.commit()
             return True
         except sqlite3.Error as e:
@@ -183,10 +181,8 @@ class Database:
                 images = [sqlite3.Binary(image) for image in images]
             else:
                 images = []
-            self.cursor.execute("""
-                UPDATE valves SET name=?, nominal_pressure=?, inlet_diameter=?, outlet_diameter=?, last_collaud_date=?, years_until_collaud=?, avviso_anticipo=?
-                WHERE id=?
-            """, valve[:-1] + (id,))
+            self.cursor.execute("""UPDATE valves SET name=?, nominal_pressure=?, inlet_diameter=?, outlet_diameter=?, last_collaud_date=?, years_until_collaud=?, avviso_anticipo=?
+                WHERE id=?""", valve[:-1] + (id,))
             self.cursor.execute("DELETE FROM valve_images WHERE valve_id=?", (id,))
             for image in images:
                 self.cursor.execute("INSERT INTO valve_images (valve_id, image) VALUES (?,?)", (id, image))
@@ -297,6 +293,7 @@ class ValveManager(QMainWindow):
         """
         Inizializza l'interfaccia utente.
         """
+
         main_layout = QHBoxLayout()
 
         list_layout = QVBoxLayout()
@@ -304,6 +301,10 @@ class ValveManager(QMainWindow):
         self.search_input.setPlaceholderText("Cerca valvole...")
         self.search_input.textChanged.connect(self.search_valves)
         list_layout.addWidget(self.search_input)
+
+        ricerca_avanzata_button = QPushButton("Ricerca Avanzata")
+        ricerca_avanzata_button.clicked.connect(self.ricerca_avanzata)
+        list_layout.addWidget(ricerca_avanzata_button)
 
         self.valve_list = QListWidget()
         self.valve_list.itemClicked.connect(self.show_valve_details)
@@ -850,6 +851,111 @@ class ValveManager(QMainWindow):
                     next_collaud_date = valve[5] + timedelta(days=valve[6]*365)
                     ws.append([valve[0], valve[1], valve[2], valve[3], valve[4], valve[5], next_collaud_date, valve[7]])
                 wb.save(file_name)
+        except Exception as e:
+            print(f"Errore: {e}")
+
+    def check_collauds(self):
+        """
+        Controlla la scadenza dei collaudi.
+        """
+        if self.alerts_paused and self.pause_end_date is not None and date.today() < self.pause_end_date:
+            return
+        try:
+            self.db.cursor.execute("SELECT id, name, last_collaud_date, years_until_collaud, avviso_anticipo FROM valves")
+            valves = self.db.cursor.fetchall()
+            today = date.today()
+            for valve in valves:
+                next_collaud_date = valve[2] + timedelta(days=valve[3]*365)
+                avviso_anticipo = valve[4]
+                if next_collaud_date <= today + timedelta(days=avviso_anticipo):
+                    self.tray_icon.showMessage(
+                        "Promemoria Collaudo",
+                        f"La valvola {valve[1]} (ID: {valve[0]}) deve essere collaudata entro {avviso_anticipo} giorni.",
+                        QSystemTrayIcon.MessageIcon.Warning
+                    )
+                if next_collaud_date <= today:
+                    self.tray_icon.showMessage(
+                        "Promemoria Collaudo",
+                        f"La valvola {valve[1]} (ID: {valve[0]}) è scaduta.",
+                        QSystemTrayIcon.MessageIcon.Critical
+                    )
+        except sqlite3.Error as e:
+            print(f"Errore di database: {e}")
+
+    def setup_collaud_check(self):
+        """
+        Imposta il controllo della scadenza dei collaudi.
+        """
+        try:
+            timer = QTimer(self)
+            timer.timeout.connect(self.check_collauds)
+            timer.start(60000)  # Controlla ogni 24 ore (in millisecondi)
+        except Exception as e:
+            print(f"Errore: {e}")
+
+    def ricerca_avanzata(self):
+        """
+        Crea una finestra di dialogo per la ricerca avanzata.
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Ricerca Avanzata")
+        dialog.setLayout(QVBoxLayout())
+
+        # Aggiungi i campi di ricerca
+        nome_label = QLabel("Nome:")
+        nome_input = QLineEdit()
+        pressione_nominale_label = QLabel("Pressione nominale:")
+        pressione_nominale_input = QLineEdit()
+        diametro_ingresso_label = QLabel("Diametro ingresso:")
+        diametro_ingresso_input = QLineEdit()
+        diametro_uscita_label = QLabel("Diametro uscita:")
+        diametro_uscita_input = QLineEdit()
+
+        # Aggiungi i pulsanti di ricerca e annulla
+        ricerca_button = QPushButton("Ricerca")
+        annulla_button = QPushButton("Annulla")
+
+        # Connetti i pulsanti alle funzioni di ricerca e annulla
+        ricerca_button.clicked.connect(lambda: self.esegui_ricerca_avanzata(nome_input.text(), pressione_nominale_input.text(), diametro_ingresso_input.text(), diametro_uscita_input.text()))
+        annulla_button.clicked.connect(dialog.reject)
+
+        # Aggiungi i campi di ricerca e i pulsanti alla finestra di dialogo
+        dialog.layout().addWidget(nome_label)
+        dialog.layout().addWidget(nome_input)
+        dialog.layout().addWidget(pressione_nominale_label)
+        dialog.layout().addWidget(pressione_nominale_input)
+        dialog.layout().addWidget(diametro_ingresso_label)
+        dialog.layout().addWidget(diametro_ingresso_input)
+        dialog.layout().addWidget(diametro_uscita_label)
+        dialog.layout().addWidget(diametro_uscita_input)
+        dialog.layout().addWidget(ricerca_button)
+        dialog.layout().addWidget(annulla_button)
+
+        # Mostra la finestra di dialogo
+        dialog.exec()
+
+    def esegui_ricerca_avanzata(self, nome, pressione_nominale, diametro_ingresso, diametro_uscita):
+        """
+        Esegue la ricerca avanzata.
+        """
+        try:
+            # Ottieni le valvole dal database
+            valves = self.db.get_valves()
+
+            # Filtra le valvole in base ai criteri di ricerca
+            filtered_valves = []
+            for valve in valves:
+                if (nome and nome not in valve[1]) or \
+                (pressione_nominale and pressione_nominale not in valve[2]) or \
+                (diametro_ingresso and diametro_ingresso not in valve[3]) or \
+                (diametro_uscita and diametro_uscita not in valve[4]):
+                    continue
+                filtered_valves.append(valve)
+
+            # Aggiorna la lista delle valvole
+            self.valve_list.clear()
+            for valve in filtered_valves:
+                self.valve_list.addItem(f"{valve[0]}: {valve[1]}")
         except Exception as e:
             print(f"Errore: {e}")
 
