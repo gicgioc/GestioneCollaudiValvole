@@ -16,10 +16,17 @@ Istruzioni per il Primo Avvio
 
 Installare Python 3.x (se non già installato) e assicurarsi di avere i privilegi di amministratore.
 Installare i pacchetti necessari eseguendo i seguenti comandi nel terminale:
+
 pip install PyQt6
+
 pip install PyQt6-Qt6
+
 pip install openpyxl
+
 pip install reportlab
+
 pip install python-dateutil
+
 Eseguire il file valve_manager.py eseguendo il seguente comando nel terminale:
+
 python valve_manager.py
