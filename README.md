@@ -8,10 +8,15 @@ Funzionalità Principali
 
 Inserimento di nuove valvole con informazioni quali codice seriale, nome, pressione nominale, diametro di ingresso e uscita, data dell'ultimo collaudo e anni fino al prossimo collaudo.
 Modifica delle informazioni di una valvola esistente.
+
 Eliminazione di una valvola dal database.
+
 Esportazione dei dati in formato PDF, CSV o Excel.
+
 Visualizzazione delle informazioni di una valvola in una scheda dettagliata.
+
 Possibilità di aggiungere immagini alle valvole.
+
 Istruzioni per il Primo Avvio
 
 Installare Python 3.x (se non già installato) e assicurarsi di avere i privilegi di amministratore.
