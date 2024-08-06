@@ -274,6 +274,8 @@ class ValveManager(QMainWindow):
         self.setWindowIcon(QIcon('icona.ico'))
 
         self.db = Database()
+        self.alerts_paused = False
+        self.pause_end_date = None
         self.init_ui()
         self.init_tray()
         self.setup_collaud_check()
