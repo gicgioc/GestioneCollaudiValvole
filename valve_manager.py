@@ -856,10 +856,18 @@ class ValveManager(QMainWindow):
         except Exception as e:
             print(f"Errore: {e}")
 
+    def giorni_rimanenti(last_collaud_date, years_until_collaud, avviso_anticipo):
+        today = date.today()
+        next_collaud_date = last_collaud_date + timedelta(days=years_until_collaud*365)
+        giorni_rimanenti = (next_collaud_date - today).days
+        if giorni_rimanenti < 0:
+            return 0
+        elif giorni_rimanenti <= avviso_anticipo:
+            return giorni_rimanenti
+        else:
+            return avviso_anticipo
+        
     def check_collauds(self):
-        """
-        Controlla la scadenza dei collaudi.
-        """
         if self.alerts_paused and self.pause_end_date is not None and date.today() < self.pause_end_date:
             return
         try:
@@ -869,20 +877,22 @@ class ValveManager(QMainWindow):
             for valve in valves:
                 next_collaud_date = valve[2] + timedelta(days=valve[3]*365)
                 avviso_anticipo = valve[4]
-                if next_collaud_date <= today + timedelta(days=avviso_anticipo):
-                    self.tray_icon.showMessage(
-                        "Promemoria Collaudo",
-                        f"La valvola {valve[1]} (ID: {valve[0]}) deve essere collaudata entro {avviso_anticipo} giorni.",
-                        QSystemTrayIcon.MessageIcon.Warning
-                    )
                 if next_collaud_date <= today:
                     self.tray_icon.showMessage(
                         "Promemoria Collaudo",
                         f"La valvola {valve[1]} (ID: {valve[0]}) è scaduta.",
                         QSystemTrayIcon.MessageIcon.Critical
                     )
+                    continue
+                elif (next_collaud_date - today).days <= avviso_anticipo:
+                    self.tray_icon.showMessage(
+                        "Promemoria Collaudo",
+                        f"La valvola {valve[1]} (ID: {valve[0]}) deve essere collaudata entro {avviso_anticipo} giorni.",
+                        QSystemTrayIcon.MessageIcon.Warning
+                    )
         except sqlite3.Error as e:
             print(f"Errore di database: {e}")
+
 
     def setup_collaud_check(self):
         """
@@ -891,7 +901,7 @@ class ValveManager(QMainWindow):
         try:
             timer = QTimer(self)
             timer.timeout.connect(self.check_collauds)
-            timer.start(60000)  # Controlla ogni 24 ore (in millisecondi)
+            timer.start(600)  # Controlla ogni 24 ore (in millisecondi)
         except Exception as e:
             print(f"Errore: {e}")
 
@@ -962,9 +972,6 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def check_collauds(self):
-        """
-        Controlla la scadenza dei collaudi.
-        """
         if self.alerts_paused and self.pause_end_date is not None and date.today() < self.pause_end_date:
             return
         try:
@@ -974,17 +981,18 @@ class ValveManager(QMainWindow):
             for valve in valves:
                 next_collaud_date = valve[2] + timedelta(days=valve[3]*365)
                 avviso_anticipo = valve[4]
-                if next_collaud_date <= today + timedelta(days=avviso_anticipo):
-                    self.tray_icon.showMessage(
-                        "Promemoria Collaudo",
-                        f"La valvola {valve[1]} (ID: {valve[0]}) deve essere collaudata entro {avviso_anticipo} giorni.",
-                        QSystemTrayIcon.MessageIcon.Warning
-                    )
                 if next_collaud_date <= today:
                     self.tray_icon.showMessage(
                         "Promemoria Collaudo",
                         f"La valvola {valve[1]} (ID: {valve[0]}) è scaduta.",
                         QSystemTrayIcon.MessageIcon.Critical
+                    )
+                elif (next_collaud_date - today).days <= avviso_anticipo:
+                    giorni_rimanenti = (next_collaud_date - today).days
+                    self.tray_icon.showMessage(
+                        "Promemoria Collaudo",
+                        f"La valvola {valve[1]} (ID: {valve[0]}) deve essere collaudata entro {giorni_rimanenti} giorni.",
+                        QSystemTrayIcon.MessageIcon.Warning
                     )
         except sqlite3.Error as e:
             print(f"Errore di database: {e}")
@@ -996,7 +1004,7 @@ class ValveManager(QMainWindow):
         try:
             timer = QTimer(self)
             timer.timeout.connect(self.check_collauds)
-            timer.start(60000)  # Controlla ogni 24 ore (in millisecondi)
+            timer.start(6000)  # Controlla ogni 24 ore (in millisecondi)
         except Exception as e:
             print(f"Errore: {e}")
 
