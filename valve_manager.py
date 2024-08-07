@@ -9,11 +9,11 @@ Inoltre, il programma controlla automaticamente la scadenza dei collaudi e invia
 import sys
 import sqlite3
 from datetime import datetime, date, timedelta
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+from PyQt6.QtWidgets import (QApplication, QStyledItemDelegate, QTreeWidget, QTreeWidgetItem, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QListWidget, QPushButton, QLabel, QLineEdit, QFormLayout, 
                              QDateEdit, QFileDialog, QMessageBox, QTabWidget, QComboBox, QDialog, QDialogButtonBox, QSpinBox, QSystemTrayIcon, QTextEdit, QMenu, QTableWidget, QTableWidgetItem, QListWidgetItem)
 from PyQt6.QtCore import Qt, QDate, QBuffer, QByteArray, QIODevice, QTimer
-from PyQt6.QtGui import QPixmap, QIcon, QImage
+from PyQt6.QtGui import QPixmap, QIcon, QImage, QColor, QBrush
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import csv
@@ -397,7 +397,9 @@ class ValveManager(QMainWindow):
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
-
+        self.tree_widget = QTreeWidget()
+        self.tree_widget.setColumnCount(1)
+        self.tree_widget.setHeaderLabels(["Valvole"])
         self.load_valves()
 
     def init_tray(self):
@@ -446,15 +448,28 @@ class ValveManager(QMainWindow):
         self.alerts_paused = False
         self.tray_icon.showMessage("Pausa Alert", "La pausa degli alert è stata annullata.")
 
+    def update_valve_colors(self):
+        for i in range(self.valve_list.count()):
+            item = self.valve_list.item(i)
+            valve_id = item.text().split(":")[0]
+            valve = self.db.get_valve(valve_id)
+            next_collaud_date = valve[5] + timedelta(days=valve[6]*365)
+            today = date.today()
+            if next_collaud_date <= today:
+                item.setBackground(QColor("red"))  # Rosso se scaduta
+            elif (next_collaud_date - today).days <= valve[7]:
+                item.setBackground(QColor(204, 153, 0))  # Giallo più scuro se in preavviso
+            else:
+                item.setBackground(QColor(0, 0, 0, 0))  # Nessun colore di sfondo
+
     def load_valves(self):
-        """
-        Carica la lista delle valvole.
-        """
         self.valve_list.clear()
         valves = self.db.get_valves()
         for valve in valves:
-            self.valve_list.addItem(f"{valve[0]}: {valve[1]}")
-        self.search_valves()
+            item = QListWidgetItem()
+            item.setText(f"{valve[0]}: {valve[1]}")
+            self.valve_list.addItem(item)
+        self.update_valve_colors()
 
     def search_valves(self):
         """
@@ -568,6 +583,8 @@ class ValveManager(QMainWindow):
 
                 self.db.update_valve(original_id, (name, nominal_pressure, inlet_diameter, outlet_diameter, last_collaud_date, years_until_collaud, avviso_anticipo, images))
                 QMessageBox.information(self, 'Modifiche salvate', 'Le modifiche sono state salvate correttamente.')
+                # Aggiorna i colori
+                self.update_valve_colors()
         except Exception as e:
             print(f"Errore: {e}")
 
@@ -994,6 +1011,8 @@ class ValveManager(QMainWindow):
                         f"La valvola {valve[1]} (ID: {valve[0]}) deve essere collaudata entro {giorni_rimanenti} giorni.",
                         QSystemTrayIcon.MessageIcon.Warning
                     )
+            # Aggiorna i colori
+            self.update_valve_colors()
         except sqlite3.Error as e:
             print(f"Errore di database: {e}")
 
