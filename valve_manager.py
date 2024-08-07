@@ -1,48 +1,22 @@
-"""
-Gestione Collaudi Valvole di Sicurezza
-
-Questo programma gestisce la manutenzione e il controllo delle valvole di sicurezza.
-Consente di inserire, modificare e cancellare le valvole, nonché di esportare i dati in formato PDF, CSV o Excel.
-Inoltre, il programma controlla automaticamente la scadenza dei collaudi e invia notifiche tramite il sistema di notifiche del sistema operativo.
-"""
-
 import sys
 import sqlite3
 from datetime import datetime, date, timedelta
-from PyQt6.QtWidgets import (QApplication, QStyledItemDelegate, QTreeWidget, QTreeWidgetItem, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QListWidget, QPushButton, QLabel, QLineEdit, QFormLayout, 
-                             QDateEdit, QFileDialog, QMessageBox, QTabWidget, QComboBox, QDialog, QDialogButtonBox, QSpinBox, QSystemTrayIcon, QTextEdit, QMenu, QTableWidget, QTableWidgetItem, QListWidgetItem)
+                             QDateEdit, QFileDialog, QMessageBox, QTabWidget, QComboBox, QDialog, QDialogButtonBox, QSpinBox, QSystemTrayIcon, QMenu, QTableWidget, QTableWidgetItem, QListWidgetItem)
 from PyQt6.QtCore import Qt, QDate, QBuffer, QByteArray, QIODevice, QTimer
-from PyQt6.QtGui import QPixmap, QIcon, QImage, QColor, QBrush
+from PyQt6.QtGui import QPixmap, QIcon, QImage, QColor
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import csv
 from openpyxl import Workbook
 
-# Funzione per convertire la data in formato ISO
+# Funzione che converte una data in stringa formato ISO per memorizzazione nel database
 def adapt_date(val):
-    """
-    Converte la data in formato ISO.
-
-    Args:
-        val (date): Data da convertire.
-
-    Returns:
-        str: Data in formato ISO.
-    """
     return val.isoformat()
 
-# Funzione per convertire la data da formato ISO
+# Funzione che converte una stringa ISO in un oggetto data
 def convert_date(val):
-    """
-    Converte la data da formato ISO.
-
-    Args:
-        val (str): Data in formato ISO.
-
-    Returns:
-        date: Data convertita.
-    """
     if isinstance(val, str):
         return date.fromisoformat(val)
     elif isinstance(val, date):
@@ -397,9 +371,6 @@ class ValveManager(QMainWindow):
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
-        self.tree_widget = QTreeWidget()
-        self.tree_widget.setColumnCount(1)
-        self.tree_widget.setHeaderLabels(["Valvole"])
         self.load_valves()
 
     def init_tray(self):
@@ -1023,7 +994,7 @@ class ValveManager(QMainWindow):
         try:
             timer = QTimer(self)
             timer.timeout.connect(self.check_collauds)
-            timer.start(6000)  # Controlla ogni 24 ore (in millisecondi)
+            timer.start(600000)  # Controlla ogni 10 minuti (in millisecondi)
         except Exception as e:
             print(f"Errore: {e}")
 
