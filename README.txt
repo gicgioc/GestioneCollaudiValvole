@@ -12,9 +12,11 @@ Guida per la prima esecuzione e compilazione del codice sorgente:
 Installazione delle librerie: prima di eseguire il programma, è necessario installare le librerie richieste (PyQt6, sqlite3 e reportlab). Ciò può essere fatto utilizzando pip, il gestore dei pacchetti Python:
 
 pip install pyqt6 sqlite3 reportlab
+
 Esecuzione del programma: una volta installate le librerie, è possibile eseguire il programma utilizzando Python:
 
 python gestore_collaudo_valvole.py
+
 Compilazione del codice sorgente: se si desidera creare un file eseguibile del programma, è possibile utilizzare strumenti come PyInstaller o cx_Freeze.
 
 Nota: il codice sorgente fornito è già pronto per l'uso e non richiede modifiche per la prima esecuzione. Tuttavia, potrebbe essere necessario adattarlo alle specifiche esigenze dell'utente.
