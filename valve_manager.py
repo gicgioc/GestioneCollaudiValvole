@@ -888,33 +888,6 @@ class ValveManager(QMainWindow):
             return giorni_rimanenti
         else:
             return avviso_anticipo
-        
-    def check_collauds(self):
-        if self.alerts_paused and self.pause_end_date is not None and date.today() < self.pause_end_date:
-            return
-        try:
-            self.db.cursor.execute("SELECT id, name, last_collaud_date, years_until_collaud, avviso_anticipo FROM valves")
-            valves = self.db.cursor.fetchall()
-            today = date.today()
-            for valve in valves:
-                next_collaud_date = valve[2] + timedelta(days=valve[3]*365)
-                avviso_anticipo = valve[4]
-                if next_collaud_date <= today:
-                    self.tray_icon.showMessage(
-                        "Promemoria Collaudo",
-                        f"La valvola {valve[1]} (ID: {valve[0]}) è scaduta.",
-                        QSystemTrayIcon.MessageIcon.Critical
-                    )
-                    continue
-                elif (next_collaud_date - today).days <= avviso_anticipo:
-                    self.tray_icon.showMessage(
-                        "Promemoria Collaudo",
-                        f"La valvola {valve[1]} (ID: {valve[0]}) deve essere collaudata entro {avviso_anticipo} giorni.",
-                        QSystemTrayIcon.MessageIcon.Warning
-                    )
-        except sqlite3.Error as e:
-            print(f"Errore di database: {e}")
-
 
     def setup_collaud_check(self):
         """
