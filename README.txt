@@ -1,37 +1,20 @@
-Gestione Collaudi Valvole di Sicurezza
+Il programma "Gestore Collaudi Valvole di Sicurezza" è un'applicazione desktop sviluppata in Python utilizzando le librerie PyQt6, sqlite3 e reportlab. Il programma consente di gestire le valvole di sicurezza, inserendo e modificando le loro caratteristiche, eseguendo ricerche avanzate e generando report in diversi formati.
 
-Descrizione del Programma
+Funzionalità principali:
 
-Il programma "Gestione Collaudi Valvole di Sicurezza" è un'applicazione desktop sviluppata in Python che consente di gestire un database di valvole di sicurezza. L'applicazione offre diverse funzionalità per l'inserimento, la modifica e l'eliminazione di valvole, nonché la possibilità di esportare i dati in formato PDF, CSV o Excel.
+Inserimento e modifica valvole: l'utente può inserire nuove valvole e modificare quelle esistenti, specificando il codice seriale, il nome, la pressione nominale, il diametro di ingresso e di uscita, la data dell'ultimo collaudo e gli anni fino al prossimo collaudo.
+Ricerca avanzata: l'utente può eseguire ricerche avanzate sulle valvole in base a diversi criteri, come il nome, la pressione nominale e i diametri di ingresso e di uscita.
+Generazione report: il programma consente di generare report in diversi formati (PDF, CSV e Excel) contenenti le informazioni sulle valvole.
+Controllo scadenza collaudi: il programma verifica automaticamente la scadenza dei collaudi e mostra una notifica se una valvola è prossima alla scadenza o è già scaduta.
+Pausa alert: l'utente può mettere in pausa le notifiche per un periodo di tempo specificato.
+Guida per la prima esecuzione e compilazione del codice sorgente:
 
-Funzionalità Principali
+Installazione delle librerie: prima di eseguire il programma, è necessario installare le librerie richieste (PyQt6, sqlite3 e reportlab). Ciò può essere fatto utilizzando pip, il gestore dei pacchetti Python:
 
-Inserimento di nuove valvole con informazioni quali codice seriale, nome, pressione nominale, diametro di ingresso e uscita, data dell'ultimo collaudo e anni fino al prossimo collaudo.
-Modifica delle informazioni di una valvola esistente.
+pip install pyqt6 sqlite3 reportlab
+Esecuzione del programma: una volta installate le librerie, è possibile eseguire il programma utilizzando Python:
 
-Eliminazione di una valvola dal database.
+python gestore_collaudo_valvole.py
+Compilazione del codice sorgente: se si desidera creare un file eseguibile del programma, è possibile utilizzare strumenti come PyInstaller o cx_Freeze.
 
-Esportazione dei dati in formato PDF, CSV o Excel.
-
-Visualizzazione delle informazioni di una valvola in una scheda dettagliata.
-
-Possibilità di aggiungere immagini alle valvole.
-
-Istruzioni per il Primo Avvio
-
-Installare Python 3.x (se non già installato) e assicurarsi di avere i privilegi di amministratore.
-Installare i pacchetti necessari eseguendo i seguenti comandi nel terminale:
-
-pip install PyQt6
-
-pip install PyQt6-Qt6
-
-pip install openpyxl
-
-pip install reportlab
-
-pip install python-dateutil
-
-Eseguire il file valve_manager.py eseguendo il seguente comando nel terminale:
-
-python valve_manager.py
+Nota: il codice sorgente fornito è già pronto per l'uso e non richiede modifiche per la prima esecuzione. Tuttavia, potrebbe essere necessario adattarlo alle specifiche esigenze dell'utente.
