@@ -1,5 +1,5 @@
 import sys
-import sqlite3
+import sqlite3, ctypes
 from datetime import datetime, date, timedelta
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QListWidget, QPushButton, QLabel, QLineEdit, QFormLayout, 
@@ -10,6 +10,9 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import csv
 from openpyxl import Workbook
+
+# Nasconde il prompt dei comandi
+ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
 # Funzione che converte una data in stringa formato ISO per memorizzazione nel database
 def adapt_date(val):
