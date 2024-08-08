@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
                              QListWidget, QPushButton, QLabel, QLineEdit, QFormLayout, 
                              QDateEdit, QFileDialog, QMessageBox, QTabWidget, QComboBox, QDialog, QDialogButtonBox, QSpinBox, QSystemTrayIcon, QMenu, QTableWidget, QTableWidgetItem, QListWidgetItem)
 from PyQt6.QtCore import Qt, QDate, QBuffer, QByteArray, QIODevice, QTimer
-from PyQt6.QtGui import QPixmap, QIcon, QImage, QColor
+from PyQt6.QtGui import QPixmap, QIcon, QImage, QColor, QAction
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import csv
@@ -229,14 +229,48 @@ class ExportFormatDialog(QDialog):
         return self.format_combo.currentText()
 
 class ValveManager(QMainWindow):
-    """
-    Classe per la gestione delle valvole.
 
-    Attributes:
-        db (Database): Oggetto per la gestione del database.
-        alerts_paused (bool): Indica se le notifiche sono state messe in pausa.
-        pause_end_date (date): Data di fine della pausa delle notifiche.
-    """
+    def closeEvent(self, event):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Chiudi programma")
+        layout = QVBoxLayout(dialog)
+
+        # Messaggio di conferma
+        label = QLabel("Vuoi chiudere il programma?")
+        layout.addWidget(label)
+
+        # Pulsanti per le scelte
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        minimize_button = QPushButton("Minimizza nel tray")
+
+        # Connetti i segnali
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+        minimize_button.clicked.connect(lambda: dialog.done(2))  # Usa 2 per minimizzare
+
+        # Aggiungi pulsanti al layout
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(button_box)
+        button_layout.addWidget(minimize_button)
+        layout.addLayout(button_layout)
+
+        # Mostra il dialogo
+        result = dialog.exec()
+
+        if result == QDialog.DialogCode.Accepted:
+            # L'utente ha scelto di chiudere
+            self.db.close()
+            self.destroy()
+            event.accept()
+            QApplication.quit()
+        elif result == QDialog.DialogCode.Rejected:
+            # L'utente ha scelto di annullare
+            event.ignore()
+        elif result == 2:
+            # L'utente ha scelto di minimizzare
+            self.db.close()  # Chiudi la connessione al database anche se si minimizza
+            self.hide()
+            event.ignore()
 
     def __init__(self):
         """
