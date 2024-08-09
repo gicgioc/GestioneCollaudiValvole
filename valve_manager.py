@@ -42,44 +42,61 @@ class Database:
         cursor (sqlite3.Cursor): Cursor per eseguire le query.
         alerts_paused (bool): Indica se le notifiche sono state messe in pausa.
         pause_end_date (date): Data di fine della pausa delle notifiche.
+        db_path (str): Percorso del database.
     """
 
-    def __init__(self):
+    def __init__(self, db_path=None):
         """
         Inizializza il database e crea le tabelle se non esistono.
+
+        Args:
+            db_path (str): Percorso del database.
         """
-        try:
+        self.db_path = db_path
+        if db_path:
+            self.conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
+        else:
             self.conn = sqlite3.connect('valves.db', detect_types=sqlite3.PARSE_DECLTYPES)
-            self.cursor = self.conn.cursor()
-            self.cursor.execute('''CREATE TABLE IF NOT EXISTS valves
-                                (id TEXT PRIMARY KEY,
-                                 costruttore TEXT,
-                                 tag TEXT,
-                                 posizione TEXT,
-                                 nominal_pressure TEXT,
-                                 inlet_diameter TEXT,
-                                 outlet_diameter TEXT,
-                                 last_collaud_date DATE,
-                                 years_until_collaud INTEGER,
-                                 avviso_anticipo INTEGER)''')
-            self.cursor.execute('''CREATE TABLE IF NOT EXISTS valve_images
-                                (id INTEGER PRIMARY KEY,
-                                 valve_id TEXT,
-                                 image BLOB)''')
-            self.conn.commit()
-            self.alerts_paused = False
-            self.pause_end_date = None
-        except sqlite3.Error as e:
-            print(f"Errore di database: {e}")
+        self.cursor = self.conn.cursor()
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS valves
+                            (id TEXT PRIMARY KEY,
+                             costruttore TEXT,
+                             tag TEXT,
+                             posizione TEXT,
+                             nominal_pressure TEXT,
+                             inlet_diameter TEXT,
+                             outlet_diameter TEXT,
+                             last_collaud_date DATE,
+                             years_until_collaud INTEGER,
+                             avviso_anticipo INTEGER)''')
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS valve_images
+                            (id INTEGER PRIMARY KEY,
+                             valve_id TEXT,
+                             image BLOB)''')
+        self.conn.commit()
+        self.alerts_paused = False
+        self.pause_end_date = None
 
     def close(self):
         """
-        Chiude la connessione al database.
+        Chiude la connessione al database e memorizza il percorso del database in un file di configurazione.
         """
         try:
             self.conn.close()
+            with open('db_path.cfg', 'w') as f:
+                f.write(self.db_path)
         except sqlite3.Error as e:
             print(f"Errore di database: {e}")
+
+    def load_db_path(self):
+        """
+        Carica il percorso del database dal file di configurazione.
+        """
+        try:
+            with open('db_path.cfg', 'r') as f:
+                self.db_path = f.read()
+        except FileNotFoundError:
+            self.db_path = None
 
     def get_valves(self):
         """
@@ -319,6 +336,9 @@ class ValveManager(QMainWindow):
         self.setWindowIcon(QIcon('icona.ico'))
 
         self.db = Database()
+        self.db.load_db_path()
+        if self.db.db_path:
+            self.db = Database(self.db.db_path)
         self.alerts_paused = False
         self.pause_end_date = None
         self.init_ui()
@@ -341,10 +361,7 @@ class ValveManager(QMainWindow):
             # Verifica se il database esiste già nel percorso selezionato
             db_path = os.path.join(percorso, 'valves.db')
             self.db.conn.close()
-            self.db.conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
-            self.db.cursor = self.db.conn.cursor()
-
-            # Crea le tabelle del database
+            self.db = Database(db_path)
             self.db.cursor.execute('''CREATE TABLE IF NOT EXISTS valves
                                 (id TEXT PRIMARY KEY,
                                 costruttore TEXT,
