@@ -1,7 +1,7 @@
 import sys
 import sqlite3, ctypes
 from datetime import datetime, date, timedelta
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+from PyQt6.QtWidgets import (QApplication, QMenuBar, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QListWidget, QPushButton, QLabel, QLineEdit, QFormLayout, 
                              QDateEdit, QFileDialog, QMessageBox, QTabWidget, QComboBox, QDialog, QDialogButtonBox, QSpinBox, QSystemTrayIcon, QMenu, QTableWidget, QTableWidgetItem, QListWidgetItem)
 from PyQt6.QtCore import Qt, QDate, QBuffer, QByteArray, QIODevice, QTimer
@@ -282,6 +282,25 @@ class ValveManager(QMainWindow):
         Inizializza la finestra principale.
         """
         super().__init__()
+        # Crea un menu "File"
+        menu = QMenu("File", self)
+
+        # Crea un'azione "Exit"
+        exit_action = QAction("Exit", self)
+        exit_action.triggered.connect(QApplication.quit)
+
+        # Aggiunge l'azione "Exit" al menu "File"
+        menu.addAction(exit_action)
+
+        # Crea una barra dei menu
+        barra_menu = QMenuBar(self)
+
+        # Aggiunge il menu "File" alla barra dei menu
+        barra_menu.addMenu(menu)
+
+        # Imposta la barra dei menu come barra dei menu principale
+        self.setMenuBar(barra_menu)
+
         self.setWindowTitle("Gestione Collaudi Valvole di Sicurezza")
         self.setGeometry(100, 100, 1000, 600)
         self.setWindowIcon(QIcon('icona.ico'))
