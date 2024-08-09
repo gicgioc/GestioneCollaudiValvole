@@ -363,7 +363,7 @@ class ValveManager(QMainWindow):
         form_layout.addRow("Costruttore:", self.costruttore_input)
         form_layout.addRow("Tag:", self.tag_input)
         form_layout.addRow("Posizione:", self.posizione_input)
-        form_layout.addRow("Pressione nominale:", self.nominal_pressure_input)
+        form_layout.addRow("Pressione di taratura:", self.nominal_pressure_input)
         form_layout.addRow("Diametro ingresso:", self.inlet_diameter_input)
         form_layout.addRow("Diametro uscita:", self.outlet_diameter_input)
         form_layout.addRow("Ultimo collaudo:", self.last_collaud_date_input)
@@ -566,7 +566,7 @@ class ValveManager(QMainWindow):
                 QMessageBox.warning(self, "Errore", "La posizione è obbligatoria.")
                 return
             if not nominal_pressure:
-                QMessageBox.warning(self, "Errore", "La pressione nominale è obbligatoria.")
+                QMessageBox.warning(self, "Errore", "La Pressione di taratura è obbligatoria.")
                 return
             if not inlet_diameter:
                 QMessageBox.warning(self, "Errore", "Il diametro di ingresso è obbligatorio.")
@@ -659,7 +659,7 @@ class ValveManager(QMainWindow):
                 QMessageBox.warning(self, "Errore", "La posizione è obbligatoria.")
                 return
             if not nominal_pressure:
-                QMessageBox.warning(self, "Errore", "La pressione nominale è obbligatoria.")
+                QMessageBox.warning(self, "Errore", "La Pressione di taratura è obbligatoria.")
                 return
             if not inlet_diameter:
                 QMessageBox.warning(self, "Errore", "Il diametro di ingresso è obbligatorio.")
@@ -793,7 +793,7 @@ class ValveManager(QMainWindow):
             valves = self.db.get_valves()
             self.report_table.setRowCount(len(valves))
             self.report_table.setColumnCount(10)
-            self.report_table.setHorizontalHeaderLabels(["ID", "Costruttore", "Tag", "Posizione", "Pressione nominale", "Diametro ingresso", "Diametro uscita", "Ultimo collaudo", "Prossimo collaudo", "Avviso anticipo"])
+            self.report_table.setHorizontalHeaderLabels(["ID", "Costruttore", "Tag", "Posizione", "Pressione di taratura", "Diametro ingresso", "Diametro uscita", "Ultimo collaudo", "Prossimo collaudo", "Avviso anticipo"])
             for i, valve in enumerate(valves):
                 self.report_table.setItem(i, 0, QTableWidgetItem(str(valve[0])))
                 self.report_table.setItem(i, 1, QTableWidgetItem(str(valve[1])))
@@ -859,7 +859,7 @@ class ValveManager(QMainWindow):
                 y = height - 150
                 for valve in valves:
                     next_collaud_date = valve[7] + timedelta(days=valve[8]*365)
-                    valve_details = f"ID: {valve[0]}, Costruttore: {valve[1]}, Tag: {valve[2]}, Posizione: {valve[3]}, Pressione nominale: {valve[4]}, Diametro ingresso: {valve[5]}, Diametro uscita: {valve[6]}, Ultimo collaudo: {valve[7]}, Prossimo collaudo: {next_collaud_date}, Avviso anticipo: {valve[9]}"
+                    valve_details = f"ID: {valve[0]}, Costruttore: {valve[1]}, Tag: {valve[2]}, Posizione: {valve[3]}, Pressione di taratura: {valve[4]}, Diametro ingresso: {valve[5]}, Diametro uscita: {valve[6]}, Ultimo collaudo: {valve[7]}, Prossimo collaudo: {next_collaud_date}, Avviso anticipo: {valve[9]}"
                     c.drawString(100, y, valve_details)
                     y -= 30
                     if y < 100:
@@ -881,7 +881,7 @@ class ValveManager(QMainWindow):
             if file_name:
                 with open(file_name, mode='w', newline='') as file:
                     writer = csv.writer(file)
-                    writer.writerow(["ID", "Costruttore", "Tag", "Posizione", "Pressione nominale", "Diametro ingresso", "Diametro uscita", "Ultimo collaudo", "Prossimo collaudo", "Avviso anticipo"])
+                    writer.writerow(["ID", "Costruttore", "Tag", "Posizione", "Pressione di taratura", "Diametro ingresso", "Diametro uscita", "Ultimo collaudo", "Prossimo collaudo", "Avviso anticipo"])
                     for valve in valves:
                         next_collaud_date = valve[7] + timedelta(days=valve[8]*365)
                         writer.writerow([valve[0], valve[1], valve[2], valve[3], valve[4], valve[5], valve[6], valve[7], next_collaud_date, valve[9]])
@@ -900,7 +900,7 @@ class ValveManager(QMainWindow):
             if file_name:
                 wb = Workbook()
                 ws = wb.active
-                ws.append(["ID", "Costruttore", "Tag", "Posizione", "Pressione nominale", "Diametro ingresso", "Diametro uscita", "Ultimo collaudo", "Prossimo collaudo", "Avviso anticipo"])
+                ws.append(["ID", "Costruttore", "Tag", "Posizione", "Pressione di taratura", "Diametro ingresso", "Diametro uscita", "Ultimo collaudo", "Prossimo collaudo", "Avviso anticipo"])
                 for valve in valves:
                     next_collaud_date = valve[7] + timedelta(days=valve[8]*365)
                     ws.append([valve[0], valve[1], valve[2], valve[3], valve[4], valve[5], valve[6], valve[7], next_collaud_date, valve[9]])
@@ -975,7 +975,7 @@ class ValveManager(QMainWindow):
         tag_input = QLineEdit()
         posizione_label = QLabel("Posizione:")
         posizione_input = QLineEdit()
-        pressione_nominale_label = QLabel("Pressione nominale:")
+        pressione_nominale_label = QLabel("Pressione di taratura:")
         pressione_nominale_input = QLineEdit()
         diametro_ingresso_label = QLabel("Diametro ingresso:")
         diametro_ingresso_input = QLineEdit()
