@@ -1,5 +1,5 @@
 import sys
-import sqlite3, ctypes
+import sqlite3, ctypes, os
 from datetime import datetime, date, timedelta
 from PyQt6.QtWidgets import (QApplication, QMenuBar, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QListWidget, QPushButton, QLabel, QLineEdit, QFormLayout, 
@@ -300,6 +300,19 @@ class ValveManager(QMainWindow):
 
         # Imposta la barra dei menu come barra dei menu principale
         self.setMenuBar(barra_menu)
+        
+        # Crea un menu "Opzioni"
+        opzioni_menu = QMenu("Opzioni", self)
+
+        # Crea un'azione "Percorso database"
+        percorso_database_action = QAction("Percorso database", self)
+        percorso_database_action.triggered.connect(self.modifica_percorso_database)
+
+        # Aggiunge l'azione "Percorso database" al menu "Opzioni"
+        opzioni_menu.addAction(percorso_database_action)
+
+        # Aggiunge il menu "Opzioni" alla barra dei menu
+        barra_menu.addMenu(opzioni_menu)
 
         self.setWindowTitle("Gestione Collaudi Valvole di Sicurezza")
         self.setGeometry(100, 100, 1000, 600)
@@ -312,6 +325,45 @@ class ValveManager(QMainWindow):
         self.init_tray()
         self.setup_collaud_check()
         self.image_list.resizeEvent = self.resize_image_list
+
+    def modifica_percorso_database(self):
+        # Crea una finestra di dialogo per selezionare il percorso del database
+        dialog = QFileDialog(self)
+        dialog.setWindowTitle("Seleziona il percorso del database")
+        dialog.setFileMode(QFileDialog.FileMode.Directory)
+        dialog.setOption(QFileDialog.Option.ShowDirsOnly, True)
+
+        # Mostra la finestra di dialogo
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            # Ottieni il percorso selezionato
+            percorso = dialog.selectedFiles()[0]
+
+            # Verifica se il database esiste già nel percorso selezionato
+            db_path = os.path.join(percorso, 'valves.db')
+            self.db.conn.close()
+            self.db.conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
+            self.db.cursor = self.db.conn.cursor()
+
+            # Crea le tabelle del database
+            self.db.cursor.execute('''CREATE TABLE IF NOT EXISTS valves
+                                (id TEXT PRIMARY KEY,
+                                costruttore TEXT,
+                                tag TEXT,
+                                posizione TEXT,
+                                nominal_pressure TEXT,
+                                inlet_diameter TEXT,
+                                outlet_diameter TEXT,
+                                last_collaud_date DATE,
+                                years_until_collaud INTEGER,
+                                avviso_anticipo INTEGER)''')
+            self.db.cursor.execute('''CREATE TABLE IF NOT EXISTS valve_images
+                                (id INTEGER PRIMARY KEY,
+                                valve_id TEXT,
+                                image BLOB)''')
+            self.db.conn.commit()
+
+            # Aggiorna la lista delle valvole
+            self.load_valves()
 
     def resize_image_list(self, event):
         """
