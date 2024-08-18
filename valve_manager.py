@@ -64,8 +64,9 @@ class Database:
     def close(self):
         try:
             self.conn.close()
-            with open('db_path.cfg', 'w') as f:
-                f.write(self.db_path)
+            if self.db_path is not None:
+                with open('db_path.cfg', 'w') as f:
+                    f.write(self.db_path)
         except sqlite3.Error as e:
             print(f"Errore di database: {e}")
 
@@ -914,13 +915,16 @@ class ValveManager(QMainWindow):
         diametro_ingresso_input = QLineEdit()
         diametro_uscita_label = QLabel("Diametro uscita:")
         diametro_uscita_input = QLineEdit()
+        stato_label = QLabel("Stato:")
+        stato_input = QComboBox()
+        stato_input.addItems(["In uso", "Scorta", "Tutti"])
 
         # Aggiungi i pulsanti di ricerca e annulla
         ricerca_button = QPushButton("Ricerca")
         annulla_button = QPushButton("Annulla")
 
         # Connetti i pulsanti alle funzioni di ricerca e annulla
-        ricerca_button.clicked.connect(lambda: self.esegui_ricerca_avanzata(numero_seriale_input.text(), costruttore_input.text(), tag_input.text(), posizione_input.text(), pressione_nominale_input.text(), diametro_ingresso_input.text(), diametro_uscita_input.text()))
+        ricerca_button.clicked.connect(lambda: self.esegui_ricerca_avanzata(numero_seriale_input.text(), costruttore_input.text(), tag_input.text(), posizione_input.text(), pressione_nominale_input.text(), diametro_ingresso_input.text(), diametro_uscita_input.text(), stato_input.currentText()))
         annulla_button.clicked.connect(dialog.reject)
 
         # Aggiungi i campi di ricerca e i pulsanti alla finestra di dialogo
@@ -938,13 +942,15 @@ class ValveManager(QMainWindow):
         dialog.layout().addWidget(diametro_ingresso_input)
         dialog.layout().addWidget(diametro_uscita_label)
         dialog.layout().addWidget(diametro_uscita_input)
+        dialog.layout().addWidget(stato_label)
+        dialog.layout().addWidget(stato_input)
         dialog.layout().addWidget(ricerca_button)
         dialog.layout().addWidget(annulla_button)
 
         # Mostra la finestra di dialogo
         dialog.exec()
 
-    def esegui_ricerca_avanzata(self, numero_seriale, costruttore, tag, posizione, pressione_nominale, diametro_ingresso, diametro_uscita):
+    def esegui_ricerca_avanzata(self, numero_seriale, costruttore, tag, posizione, pressione_nominale, diametro_ingresso, diametro_uscita, stato):
         try:
             # Ottieni le valvole dal database
             valves = self.db.get_valves()
@@ -958,7 +964,8 @@ class ValveManager(QMainWindow):
                 (posizione and posizione not in valve[3]) or \
                 (pressione_nominale and pressione_nominale not in valve[4]) or \
                 (diametro_ingresso and diametro_ingresso not in valve[5]) or \
-                (diametro_uscita and diametro_uscita not in valve[6]):
+                (diametro_uscita and diametro_uscita not in valve[6]) or \
+                (stato != "Tutti" and stato != valve[10]):
                     continue
                 filtered_valves.append(valve)
 
