@@ -34,24 +34,7 @@ sqlite3.register_adapter(date, adapt_date)
 sqlite3.register_converter("DATE", convert_date)
 
 class Database:
-    """
-    Classe per gestire il database delle valvole.
-
-    Attributes:
-        conn (sqlite3.Connection): Connessione al database.
-        cursor (sqlite3.Cursor): Cursor per eseguire le query.
-        alerts_paused (bool): Indica se le notifiche sono state messe in pausa.
-        pause_end_date (date): Data di fine della pausa delle notifiche.
-        db_path (str): Percorso del database.
-    """
-
     def __init__(self, db_path=None):
-        """
-        Inizializza il database e crea le tabelle se non esistono.
-
-        Args:
-            db_path (str): Percorso del database.
-        """
         self.db_path = db_path
         if db_path:
             self.conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -68,7 +51,8 @@ class Database:
                              outlet_diameter TEXT,
                              last_collaud_date DATE,
                              years_until_collaud INTEGER,
-                             avviso_anticipo INTEGER)''')
+                             avviso_anticipo INTEGER,
+                             stato TEXT)''')
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS valve_images
                             (id INTEGER PRIMARY KEY,
                              valve_id TEXT,
@@ -78,9 +62,6 @@ class Database:
         self.pause_end_date = None
 
     def close(self):
-        """
-        Chiude la connessione al database e memorizza il percorso del database in un file di configurazione.
-        """
         try:
             self.conn.close()
             with open('db_path.cfg', 'w') as f:
@@ -89,9 +70,6 @@ class Database:
             print(f"Errore di database: {e}")
 
     def load_db_path(self):
-        """
-        Carica il percorso del database dal file di configurazione.
-        """
         try:
             with open('db_path.cfg', 'r') as f:
                 self.db_path = f.read()
@@ -99,12 +77,6 @@ class Database:
             self.db_path = None
 
     def get_valves(self):
-        """
-        Restituisce la lista delle valvole.
-
-        Returns:
-            list: Lista delle valvole.
-        """
         try:
             self.cursor.execute("SELECT * FROM valves")
             rows = self.cursor.fetchall()
@@ -119,15 +91,6 @@ class Database:
             return []
 
     def get_valve(self, id):
-        """
-        Restituisce la valvola con l'ID specificato.
-
-        Args:
-            id (str): ID della valvola.
-
-        Returns:
-            tuple: Valvola con l'ID specificato.
-        """
         try:
             self.cursor.execute("SELECT * FROM valves WHERE id=?", (id,))
             valve = self.cursor.fetchone()
@@ -142,21 +105,12 @@ class Database:
             return None
 
     def insert_valve(self, valve):
-        """
-        Inserisce una nuova valvola nel database.
-
-        Args:
-            valve (tuple): Valvola da inserire.
-
-        Returns:
-            bool: True se l'inserimento è stato eseguito con successo, False altrimenti.
-        """
         try:
             self.cursor.execute("SELECT * FROM valves WHERE id=?", (valve[0],))
             if self.cursor.fetchone():
                 return False
-            self.cursor.execute("""INSERT INTO valves (id, costruttore, tag, posizione, nominal_pressure, inlet_diameter, outlet_diameter, last_collaud_date, years_until_collaud, avviso_anticipo)
-                VALUES (?,?,?,?,?,?,?,?,?,?)""", valve)
+            self.cursor.execute("""INSERT INTO valves (id, costruttore, tag, posizione, nominal_pressure, inlet_diameter, outlet_diameter, last_collaud_date, years_until_collaud, avviso_anticipo, stato)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)""", valve)
             self.conn.commit()
             return True
         except sqlite3.Error as e:
@@ -164,20 +118,13 @@ class Database:
             return False
 
     def update_valve(self, id, valve):
-        """
-        Aggiorna la valvola con l'ID specificato.
-
-        Args:
-            id (str): ID della valvola.
-            valve (tuple): Valvola da aggiornare.
-        """
         try:
             images = valve[-1]
             if images:
                 images = [sqlite3.Binary(image) for image in images]
             else:
                 images = []
-            self.cursor.execute("""UPDATE valves SET costruttore=?, tag=?, posizione=?, nominal_pressure=?, inlet_diameter=?, outlet_diameter=?, last_collaud_date=?, years_until_collaud=?, avviso_anticipo=?
+            self.cursor.execute("""UPDATE valves SET costruttore=?, tag=?, posizione=?, nominal_pressure=?, inlet_diameter=?, outlet_diameter=?, last_collaud_date=?, years_until_collaud=?, avviso_anticipo=?, stato=?
                 WHERE id=?""", valve[:-1] + (id,))
             self.cursor.execute("DELETE FROM valve_images WHERE valve_id=?", (id,))
             for image in images:
@@ -187,12 +134,6 @@ class Database:
             print(f"Errore di database: {e}")
 
     def delete_valve(self, id):
-        """
-        Cancella la valvola con l'ID specificato.
-
-        Args:
-            id (str): ID della valvola.
-        """
         try:
             self.cursor.execute("DELETE FROM valves WHERE id=?", (id,))
             self.cursor.execute("DELETE FROM valve_images WHERE valve_id=?", (id,))
@@ -201,13 +142,6 @@ class Database:
             print(f"Errore di database: {e}")
 
     def update_valve_image(self, id, image):
-        """
-        Aggiorna l'immagine della valvola con l'ID specificato.
-
-        Args:
-            id (str): ID della valvola.
-            image (bytes): Immagine da aggiornare.
-        """
         try:
             self.cursor.execute("INSERT INTO valve_images (valve_id, image) VALUES (?,?)", (id, image))
             self.conn.commit()
@@ -215,17 +149,7 @@ class Database:
             print(f"Errore di database: {e}")
 
 class ExportFormatDialog(QDialog):
-    """
-    Classe per la finestra di dialogo per la scelta del formato di esportazione.
-
-    Attributes:
-        format_combo (QComboBox): Combo box per la scelta del formato di esportazione.
-    """
-
     def __init__(self, parent=None):
-        """
-        Inizializza la finestra di dialogo.
-        """
         super().__init__(parent)
         self.setWindowTitle("Seleziona il formato di esportazione")
         self.layout = QVBoxLayout()
@@ -242,12 +166,6 @@ class ExportFormatDialog(QDialog):
         self.setLayout(self.layout)
 
     def get_selected_format(self):
-        """
-        Restituisce il formato di esportazione selezionato.
-
-        Returns:
-            str: Formato di esportazione selezionato.
-        """
         return self.format_combo.currentText()
 
 class ValveManager(QMainWindow):
@@ -372,7 +290,8 @@ class ValveManager(QMainWindow):
                                 outlet_diameter TEXT,
                                 last_collaud_date DATE,
                                 years_until_collaud INTEGER,
-                                avviso_anticipo INTEGER)''')
+                                avviso_anticipo INTEGER,
+                                stato TEXT)''')
             self.db.cursor.execute('''CREATE TABLE IF NOT EXISTS valve_images
                                 (id INTEGER PRIMARY KEY,
                                 valve_id TEXT,
@@ -383,9 +302,6 @@ class ValveManager(QMainWindow):
             self.load_valves()
 
     def resize_image_list(self, event):
-        """
-        Ridimensiona la lista delle immagini.
-        """
         for i in range(self.image_list.count()):
             item = self.image_list.item(i)
             image_label = self.image_list.itemWidget(item)
@@ -393,10 +309,6 @@ class ValveManager(QMainWindow):
                 image_label.setFixedSize(self.image_list.width(), self.image_list.height())
 
     def init_ui(self):
-        """
-        Inizializza l'interfaccia utente.
-        """
-
         main_layout = QHBoxLayout()
 
         list_layout = QVBoxLayout()
@@ -443,6 +355,8 @@ class ValveManager(QMainWindow):
         self.avviso_anticipo_input = QSpinBox()
         self.avviso_anticipo_input.setRange(1, 365)
         self.avviso_anticipo_input.setValue(90)
+        self.stato_input = QComboBox()
+        self.stato_input.addItems(["In uso", "Scorta"])
         self.image_list = QListWidget()
         self.image_list.itemClicked.connect(self.show_selected_image)
         self.image_list.itemDoubleClicked.connect(self.remove_selected_image)
@@ -457,6 +371,7 @@ class ValveManager(QMainWindow):
         form_layout.addRow("Ultimo collaudo:", self.last_collaud_date_input)
         form_layout.addRow("Anni fino al prossimo collaudo:", self.years_until_collaud_input)
         form_layout.addRow("Avviso scadenza anticipo (giorni):", self.avviso_anticipo_input)
+        form_layout.addRow("Stato:", self.stato_input)
         form_layout.addRow("Immagini:", self.image_list)
 
         details_layout.addLayout(form_layout)
@@ -505,9 +420,6 @@ class ValveManager(QMainWindow):
         self.load_valves()
 
     def init_tray(self):
-        """
-        Inizializza la tray icon.
-        """
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QIcon('icona.ico'))
         self.tray_icon.setToolTip("Gestione Collaudi Valvole di Sicurezza")  # Imposta il titolo dell'alert
@@ -533,20 +445,11 @@ class ValveManager(QMainWindow):
         self.tray_icon.show()
 
     def pause_alerts(self, days):
-        """
-        Mette in pausa le notifiche per il numero di giorni specificato.
-
-        Args:
-            days (int): Numero di giorni per cui mettere in pausa le notifiche.
-        """
         self.alerts_paused = True
         self.pause_end_date = date.today() + timedelta(days=days)
         self.tray_icon.showMessage("Pausa Alert", f"Gli alert sono stati messi in pausa per {days} giorni.")
 
     def resume_alerts(self):
-        """
-        Annulla la pausa delle notifiche.
-        """
         self.alerts_paused = False
         self.tray_icon.showMessage("Pausa Alert", "La pausa degli alert è stata annullata.")
 
@@ -574,9 +477,6 @@ class ValveManager(QMainWindow):
         self.update_valve_colors()
 
     def search_valves(self):
-        """
-        Cerca le valvole in base al testo inserito nella barra di ricerca.
-        """
         search_text = self.search_input.text().lower()
         for i in range(self.valve_list.count()):
             item = self.valve_list.item(i)
@@ -586,12 +486,6 @@ class ValveManager(QMainWindow):
                 item.setHidden(True)
 
     def show_valve_details(self, item):
-        """
-        Mostra i dettagli della valvola selezionata.
-
-        Args:
-            item (QListWidgetItem): Item selezionato.
-        """
         valve_id = item.text().split(":")[0]
         valve = self.db.get_valve(valve_id)
         if valve:
@@ -605,8 +499,9 @@ class ValveManager(QMainWindow):
             self.last_collaud_date_input.setDate(QDate(valve[7]))
             self.years_until_collaud_input.setValue(valve[8])
             self.avviso_anticipo_input.setValue(valve[9])
+            self.stato_input.setCurrentText(valve[10])
             next_collaud_date = valve[7] + timedelta(days=valve[8]*365)
-            for image in valve[10]:
+            for image in valve[11]:
                 image_label = QLabel()
                 pixmap = QPixmap()
                 pixmap.loadFromData(image)
@@ -618,9 +513,6 @@ class ValveManager(QMainWindow):
         self.id_input.setEnabled(False)  # Disabilita la modifica del codice seriale
 
     def save_valve(self):
-        """
-        Salva le modifiche alla valvola.
-        """
         try:
             valve_id = self.id_input.text()
             costruttore = self.costruttore_input.text()
@@ -632,6 +524,7 @@ class ValveManager(QMainWindow):
             last_collaud_date = self.last_collaud_date_input.date().toPyDate()
             years_until_collaud = self.years_until_collaud_input.value()
             avviso_anticipo = self.avviso_anticipo_input.value()
+            stato = self.stato_input.currentText()
 
             # Ottieni il codice seriale originale
             original_valve = self.db.get_valve(self.valve_list.currentItem().text().split(':')[0])
@@ -692,7 +585,7 @@ class ValveManager(QMainWindow):
                         buffer.close()
                         images.append(image)
 
-                self.db.update_valve(original_id, (costruttore, tag, posizione, nominal_pressure, inlet_diameter, outlet_diameter, last_collaud_date, years_until_collaud, avviso_anticipo, images))
+                self.db.update_valve(original_id, (costruttore, tag, posizione, nominal_pressure, inlet_diameter, outlet_diameter, last_collaud_date, years_until_collaud, avviso_anticipo, stato, images))
                 QMessageBox.information(self, 'Modifiche salvate', 'Le modifiche sono state salvate correttamente.')
                 # Aggiorna i colori
                 self.update_valve_colors()
@@ -700,9 +593,6 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def prepare_new_valve(self):
-        """
-        Prepara una nuova valvola.
-        """
         self.id_input.clear()
         self.costruttore_input.clear()
         self.tag_input.clear()
@@ -713,13 +603,11 @@ class ValveManager(QMainWindow):
         self.last_collaud_date_input.setDate(QDate.currentDate())
         self.years_until_collaud_input.setValue(1)
         self.avviso_anticipo_input.setValue(90)
+        self.stato_input.setCurrentIndex(0)
         self.image_list.clear()
         self.id_input.setEnabled(True)  # Abilita la modifica del codice seriale
 
     def insert_valve(self):
-        """
-        Inserisce una nuova valvola.
-        """
         try:
             # Legge i dati dalla scheda
             valve_id = self.id_input.text()
@@ -732,6 +620,7 @@ class ValveManager(QMainWindow):
             last_collaud_date = self.last_collaud_date_input.date().toPyDate()
             years_until_collaud = self.years_until_collaud_input.value()
             avviso_anticipo = self.avviso_anticipo_input.value()
+            stato = self.stato_input.currentText()
 
             # Validazione degli input
             if not valve_id:
@@ -763,7 +652,7 @@ class ValveManager(QMainWindow):
                 return
 
             # Inserisce la valvola nel database
-            if self.db.insert_valve((valve_id, costruttore, tag, posizione, nominal_pressure, inlet_diameter, outlet_diameter, last_collaud_date, years_until_collaud, avviso_anticipo)):
+            if self.db.insert_valve((valve_id, costruttore, tag, posizione, nominal_pressure, inlet_diameter, outlet_diameter, last_collaud_date, years_until_collaud, avviso_anticipo, stato)):
                 self.load_valves()
             else:
                 QMessageBox.warning(self, "Errore", "La valvola con questo ID già esiste.")
@@ -771,24 +660,22 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def delete_valve(self):
-        """
-        Cancella la valvola selezionata.
-        """
         try:
-            valve_id = self.valve_list.currentItem().text().split(":")[0]
-            reply = QMessageBox.question(self, 'Conferma eliminazione', f'Sei sicuro di voler eliminare la valvola {valve_id}?',
-                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            item = self.valve_list.currentItem()
+            if item is not None:
+                valve_id = item.text().split(":")[0]
+                reply = QMessageBox.question(self, 'Conferma eliminazione', f'Sei sicuro di voler eliminare la valvola {valve_id}?',
+                                            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
 
-            if reply == QMessageBox.StandardButton.Yes:
-                self.db.delete_valve(valve_id)
-                self.load_valves()
+                if reply == QMessageBox.StandardButton.Yes:
+                    self.db.delete_valve(valve_id)
+                    self.load_valves()
+            else:
+                QMessageBox.warning(self, "Errore", "Seleziona una valvola da eliminare.")
         except Exception as e:
             print(f"Errore: {e}")
 
     def add_image(self):
-        """
-        Aggiunge un'immagine alla valvola.
-        """
         try:
             file_name, _ = QFileDialog.getOpenFileName(self, "Seleziona immagine", "", "Immagini (*.png *.xpm *.jpg)")
             if file_name:
@@ -811,12 +698,6 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def show_selected_image(self, item):
-        """
-        Mostra l'immagine selezionata.
-
-        Args:
-            item (QListWidgetItem): Item selezionato.
-        """
         try:
             image_label = self.image_list.itemWidget(item)
             if image_label:
@@ -825,12 +706,6 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def remove_selected_image(self, item):
-        """
-        Rimuove l'immagine selezionata.
-
-        Args:
-            item (QListWidgetItem): Item selezionato.
-        """
         try:
             reply = QMessageBox.question(self, 'Conferma rimozione', 'Sei sicuro di voler rimuovere l\'immagine?',
                                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
@@ -840,9 +715,6 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def remove_image(self):
-        """
-        Rimuove l'immagine selezionata.
-        """
         try:
             selected_item = self.image_list.currentItem()
             if selected_item:
@@ -856,9 +728,6 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def export_image(self):
-        """
-        Esporta l'immagine selezionata.
-        """
         try:
             selected_item = self.image_list.currentItem()
             if selected_item:
@@ -874,14 +743,11 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def generate_report(self):
-        """
-        Genera il report delle valvole.
-        """
         try:
             valves = self.db.get_valves()
             self.report_table.setRowCount(len(valves))
             self.report_table.setColumnCount(10)
-            self.report_table.setHorizontalHeaderLabels(["ID", "Costruttore", "Tag", "Posizione", "Pressione di taratura", "Diametro ingresso", "Diametro uscita", "Ultimo collaudo", "Prossimo collaudo", "Avviso anticipo"])
+            self.report_table.setHorizontalHeaderLabels(["ID", "Costruttore", "Tag", "Posizione", "Pressione di taratura", "Diametro ingresso", "Diametro uscita", "Ultimo collaudo", "Prossimo collaudo", "Stato"])
             for i, valve in enumerate(valves):
                 self.report_table.setItem(i, 0, QTableWidgetItem(str(valve[0])))
                 self.report_table.setItem(i, 1, QTableWidgetItem(str(valve[1])))
@@ -893,11 +759,11 @@ class ValveManager(QMainWindow):
                 self.report_table.setItem(i, 7, QTableWidgetItem(str(valve[7])))
                 next_collaud_date = valve[7] + timedelta(days=valve[8]*365)
                 self.report_table.setItem(i, 8, QTableWidgetItem(str(next_collaud_date)))
-                self.report_table.setItem(i, 9, QTableWidgetItem(str(valve[9])))
+                self.report_table.setItem(i, 9, QTableWidgetItem(str(valve[10])))
 
                 # Aggiunta delle immagini
                 image_label = QLabel()
-                images = self.db.get_valve(valve[0])[10]
+                images = self.db.get_valve(valve[0])[11]
                 if images:
                     pixmap = QPixmap()
                     pixmap.loadFromData(images[0])
@@ -911,9 +777,6 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def export_report(self):
-        """
-        Esporta il report delle valvole.
-        """
         try:
             dialog = ExportFormatDialog(self)
             if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -932,12 +795,6 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def export_to_pdf(self, valves):
-        """
-        Esporta il report in formato PDF.
-
-        Args:
-            valves (list): Lista delle valvole.
-        """
         try:
             file_name, _ = QFileDialog.getSaveFileName(self, "Salva PDF", "", "PDF Files (*.pdf)")
             if file_name:
@@ -947,7 +804,7 @@ class ValveManager(QMainWindow):
                 y = height - 150
                 for valve in valves:
                     next_collaud_date = valve[7] + timedelta(days=valve[8]*365)
-                    valve_details = f"ID: {valve[0]}, Costruttore: {valve[1]}, Tag: {valve[2]}, Posizione: {valve[3]}, Pressione di taratura: {valve[4]}, Diametro ingresso: {valve[5]}, Diametro uscita: {valve[6]}, Ultimo collaudo: {valve[7]}, Prossimo collaudo: {next_collaud_date}, Avviso anticipo: {valve[9]}"
+                    valve_details = f"ID: {valve[0]}, Costruttore: {valve[1]}, Tag: {valve[2]}, Posizione: {valve[3]}, Pressione di taratura: {valve[4]}, Diametro ingresso: {valve[5]}, Diametro uscita: {valve[6]}, Ultimo collaudo: {valve[7]}, Prossimo collaudo: {next_collaud_date}, Stato: {valve[10]}"
                     c.drawString(100, y, valve_details)
                     y -= 30
                     if y < 100:
@@ -958,40 +815,28 @@ class ValveManager(QMainWindow):
             print(f"Errore: {e}")
 
     def export_to_csv(self, valves):
-        """
-        Esporta il report in formato CSV.
-
-        Args:
-            valves (list): Lista delle valvole.
-        """
         try:
             file_name, _ = QFileDialog.getSaveFileName(self, "Salva CSV", "", "CSV Files (*.csv)")
             if file_name:
                 with open(file_name, mode='w', newline='') as file:
                     writer = csv.writer(file)
-                    writer.writerow(["ID", "Costruttore", "Tag", "Posizione", "Pressione di taratura", "Diametro ingresso", "Diametro uscita", "Ultimo collaudo", "Prossimo collaudo", "Avviso anticipo"])
+                    writer.writerow(["ID", "Costruttore", "Tag", "Posizione", "Pressione di taratura", "Diametro ingresso", "Diametro uscita", "Ultimo collaudo", "Prossimo collaudo", "Stato"])
                     for valve in valves:
                         next_collaud_date = valve[7] + timedelta(days=valve[8]*365)
-                        writer.writerow([valve[0], valve[1], valve[2], valve[3], valve[4], valve[5], valve[6], valve[7], next_collaud_date, valve[9]])
+                        writer.writerow([valve[0], valve[1], valve[2], valve[3], valve[4], valve[5], valve[6], valve[7], next_collaud_date, valve[10]])
         except Exception as e:
             print(f"Errore: {e}")
 
     def export_to_excel(self, valves):
-        """
-        Esporta il report in formato Excel.
-
-        Args:
-            valves (list): Lista delle valvole.
-        """
         try:
             file_name, _ = QFileDialog.getSaveFileName(self, "Salva Excel", "", "Excel Files (*.xlsx)")
             if file_name:
                 wb = Workbook()
                 ws = wb.active
-                ws.append(["ID", "Costruttore", "Tag", "Posizione", "Pressione di taratura", "Diametro ingresso", "Diametro uscita", "Ultimo collaudo", "Prossimo collaudo", "Avviso anticipo"])
+                ws.append(["ID", "Costruttore", "Tag", "Posizione", "Pressione di taratura", "Diametro ingresso", "Diametro uscita", "Ultimo collaudo", "Prossimo collaudo", "Stato"])
                 for valve in valves:
                     next_collaud_date = valve[7] + timedelta(days=valve[8]*365)
-                    ws.append([valve[0], valve[1], valve[2], valve[3], valve[4], valve[5], valve[6], valve[7], next_collaud_date, valve[9]])
+                    ws.append([valve[0], valve[1], valve[2], valve[3], valve[4], valve[5], valve[6], valve[7], next_collaud_date, valve[10]])
                 wb.save(file_name)
         except Exception as e:
             print(f"Errore: {e}")
@@ -1100,9 +945,6 @@ class ValveManager(QMainWindow):
         dialog.exec()
 
     def esegui_ricerca_avanzata(self, numero_seriale, costruttore, tag, posizione, pressione_nominale, diametro_ingresso, diametro_uscita):
-        """
-        Esegue la ricerca avanzata.
-        """
         try:
             # Ottieni le valvole dal database
             valves = self.db.get_valves()
